@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>LOS Tracker — Professional Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --amway-blue:#003a70;
+    --amway-blue-dark:#002347;
+    --amway-blue-light:#1860a8;
+    --amway-red:#e4002b;
+    --bg:#f4f6f9;
+    --panel:#ffffff;
+    --text:#1a1a1a;
+    --muted:#6b7280;
+    --border:#e5e7eb;
+    --border-strong:#d1d5db;
+    --good:#0a7f3f;
+    --good-bg:#d1fae5;
+    --bad:#c11b1b;
+    --bad-bg:#fee2e2;
+    --warn:#b45309;
+    --inactive:#9ca3af;
+    --hover:#eef4fb;
+    /* Column widths - all resizable via CSS variables */
+    --w-abo:70px;
+    --w-name:220px;
+    --w-level:50px;
+    --w-month:100px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);height:100%}
+  body{display:flex;flex-direction:column;min-height:100vh}
+
+  /* HEADER */
+  header{background:linear-gradient(90deg,var(--amway-blue),var(--amway-blue-light));color:#fff;padding:12px 20px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 6px rgba(0,0,0,.12);position:sticky;top:0;z-index:100}
+  header h1{margin:0;font-size:17px;font-weight:600;letter-spacing:.3px}
+  header .badge{background:var(--amway-red);color:#fff;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600;letter-spacing:.5px}
+  header .spacer{flex:1}
+  header button{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:6px 12px;border-radius:4px;font-size:13px;cursor:pointer;font-weight:500}
+  header button:hover{background:rgba(255,255,255,.25)}
+
+  /* NAV TABS */
+  nav{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:0;overflow-x:auto;position:sticky;top:50px;z-index:99;align-items:center}
+  nav button{background:transparent;border:none;padding:12px 18px;font-size:14px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;font-weight:500;white-space:nowrap}
+  nav button.active{color:var(--amway-blue);border-bottom-color:var(--amway-red);font-weight:600}
+  nav button:hover:not(.active){color:var(--text)}
+  nav .back-btn{margin-right:10px;padding:6px 12px;background:#f0f3f7;border:1px solid var(--border);border-radius:4px;color:var(--amway-blue);font-size:13px;display:none}
+  nav .back-btn.visible{display:flex;align-items:center;gap:4px}
+  nav .back-btn:hover{background:var(--hover);color:var(--amway-blue-dark)}
+
+  main{flex:1;padding:16px 20px;max-width:100%;margin:0 auto;width:100%}
+
+  /* UPLOAD */
+  .dropzone{border:2px dashed #c7d2db;background:#fff;border-radius:8px;padding:40px;text-align:center;transition:all .15s;margin-bottom:20px}
+  .dropzone.drag{border-color:var(--amway-blue);background:#eef4fb}
+  .dropzone p{margin:0 0 8px;color:var(--muted)}
+  .dropzone strong{color:var(--amway-blue);font-size:15px;display:block;margin-bottom:6px}
+  .dropzone input[type=file]{display:none}
+  .dropzone label{display:inline-block;background:var(--amway-blue);color:#fff;padding:8px 18px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:500;margin-top:8px}
+  .dropzone label:hover{background:var(--amway-blue-dark)}
+  .months-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;justify-content:center}
+  .chip{background:#eef4fb;color:var(--amway-blue);padding:4px 12px;border-radius:14px;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+  .chip .x{cursor:pointer;color:var(--amway-red);font-weight:bold}
+
+  /* PANELS */
+  .panel{background:var(--panel);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:18px;margin-bottom:18px;border:1px solid var(--border)}
+  .panel h2{margin:0 0 14px;font-size:16px;color:var(--amway-blue);font-weight:600;display:flex;align-items:center;gap:10px}
+  .panel h2::before{content:"";display:block;width:4px;height:18px;background:var(--amway-red);border-radius:2px}
+
+  /* KPI CARDS */
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px}
+  .kpi{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px 18px;position:relative;overflow:hidden;transition:all .2s}
+  .kpi:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);transform:translateY(-1px)}
+  .kpi::before{content:"";position:absolute;left:0;top:0;width:4px;height:100%;background:var(--amway-blue)}
+  .kpi.kpi-good::before{background:var(--good)}
+  .kpi.kpi-bad::before{background:var(--bad)}
+  .kpi .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .kpi .value{font-size:24px;font-weight:700;color:var(--amway-blue);margin-top:5px;line-height:1.2}
+  .kpi .sub{font-size:12px;color:var(--muted);margin-top:4px}
+  .kpi .trend{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:2px 6px;border-radius:3px;margin-top:6px}
+  .kpi .trend.up{background:var(--good-bg);color:var(--good)}
+  .kpi .trend.down{background:var(--bad-bg);color:var(--bad)}
+
+  /* CONTROLS */
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px;padding:12px;background:#f8fafc;border-radius:6px;border:1px solid var(--border)}
+  .controls label{font-size:13px;color:var(--muted);font-weight:500}
+  .controls select,.controls input{padding:6px 9px;border:1px solid var(--border);border-radius:4px;font-size:13px;background:#fff;color:var(--text)}
+  .controls select:focus,.controls input:focus{outline:none;border-color:var(--amway-blue);box-shadow:0 0 0 2px rgba(0,58,112,.1)}
+  .controls .control-group{display:flex;align-items:center;gap:6px}
+  .controls .divider{width:1px;height:24px;background:var(--border)}
+
+  /* BUTTONS */
+  .btn{padding:6px 12px;font-size:13px;border:1px solid var(--border);background:#fff;color:var(--text);border-radius:4px;cursor:pointer;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{background:#f8fafc;border-color:var(--border-strong)}
+  .btn.btn-sm{padding:4px 10px;font-size:12px}
+  .btn.btn-primary{background:var(--amway-blue);color:#fff;border-color:var(--amway-blue)}
+
+  /* TABLES */
+  .table-container{position:relative;border:1px solid var(--border);border-radius:6px;background:#fff}
+  .table-scroll{max-height:75vh;overflow:auto;position:relative;border-radius:6px}
+  table{border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed}
+  th{background:var(--amway-blue);color:#fff;padding:8px 10px;text-align:left;font-weight:600;font-size:12px;letter-spacing:.3px;position:sticky;top:0;z-index:2;border-right:1px solid rgba(255,255,255,.1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+  td{padding:7px 10px;border-bottom:1px solid var(--border);background:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  tr:hover td{background:var(--hover) !important}
+
+  /* STICKY COLUMNS - Use CSS variables for dynamic positioning */
+  .col-abo{width:var(--w-abo);min-width:var(--w-abo);max-width:var(--w-abo)}
+  .col-name{width:var(--w-name);min-width:var(--w-name);max-width:var(--w-name)}
+  .col-level{width:var(--w-level);min-width:var(--w-level);max-width:var(--w-level)}
+  .col-month{width:var(--w-month);min-width:var(--w-month);max-width:var(--w-month)}
+
+  th.sticky-abo,td.sticky-abo{position:sticky;left:0;z-index:1}
+  th.sticky-abo{z-index:3}
+  th.sticky-name,td.sticky-name{position:sticky;left:var(--w-abo);z-index:1}
+  th.sticky-name{z-index:3}
+  th.sticky-level,td.sticky-level{position:sticky;left:calc(var(--w-abo) + var(--w-name));z-index:1;border-right:2px solid var(--border-strong) !important}
+  th.sticky-level{z-index:3}
+  
+  td.sticky-abo,td.sticky-name,td.sticky-level{background:#fff}
+  tr:hover td.sticky-abo,tr:hover td.sticky-name,tr:hover td.sticky-level{background:var(--hover) !important}
+  
+  td.inactive{color:var(--inactive);font-style:italic;background:repeating-linear-gradient(45deg,#fafafa,#fafafa 4px,#f0f0f0 4px,#f0f0f0 8px) !important}
+  td.up{color:var(--good);font-weight:600;background:#ecfdf5 !important}
+  td.down{color:var(--bad);font-weight:600;background:#fef2f2 !important}
+
+  /* HIERARCHY TREE */
+  .tree-cell{display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .tree-indent{display:inline-block;flex-shrink:0}
+  .tree-toggle{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:3px;cursor:pointer;background:#f0f3f7;border:1px solid var(--border);color:var(--amway-blue);font-weight:700;font-size:12px;flex-shrink:0;line-height:1;user-select:none;transition:all .1s}
+  .tree-toggle:hover{background:var(--amway-blue);color:#fff;border-color:var(--amway-blue)}
+  .tree-toggle.leaf{visibility:hidden}
+  .tree-name{overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .level-badge{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:16px;padding:0 4px;border-radius:3px;font-size:10px;font-weight:700;color:#fff}
+  .level-1{background:#7c3aed}
+  .level-2{background:#2563eb}
+  .level-3{background:#0891b2}
+  .level-4{background:#059669}
+  .level-5{background:#ca8a04}
+  .level-6{background:#dc2626}
+  .level-7{background:#9333ea}
+
+  /* COLUMN RESIZE HANDLE */
+  .resize-handle{position:absolute;right:-3px;top:0;width:6px;height:100%;cursor:col-resize;z-index:5;user-select:none}
+  .resize-handle:hover{background:var(--amway-red);opacity:.5}
+  .resize-handle.resizing{background:var(--amway-red);opacity:.8}
+  th{position:relative}
+
+  /* VIEW MODE BUTTONS */
+  .view-mode-buttons{display:inline-flex;background:#f0f3f7;border-radius:4px;padding:2px;border:1px solid var(--border)}
+  .view-mode-buttons button{background:transparent;border:none;padding:4px 10px;font-size:12px;cursor:pointer;border-radius:3px;color:var(--muted);font-weight:500}
+  .view-mode-buttons button.on{background:var(--amway-blue);color:#fff}
+
+  /* EMPTY STATE */
+  .empty{text-align:center;padding:50px 20px;color:var(--muted)}
+  .empty h3{color:var(--text);margin:0 0 8px}
+
+  /* PILLS */
+  .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+  .pill.new{background:#d1fae5;color:#065f46}
+  .pill.churn{background:#fee2e2;color:#991b1b}
+
+  /* TWO COLUMN LAYOUT */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:1100px){.two-col{grid-template-columns:1fr}}
+
+  /* LEGEND */
+  .legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin:8px 0;flex-wrap:wrap;padding:8px 12px;background:#fafbfc;border-radius:4px;align-items:center}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:2px}
+
+  /* SCORECARD */
+  .scorecard-header{background:linear-gradient(135deg,var(--amway-blue),var(--amway-blue-light));color:#fff;padding:14px 18px;border-radius:6px;margin-bottom:14px}
+  .scorecard-header h3{margin:0 0 4px;font-size:17px}
+  .scorecard-header .meta{font-size:12px;opacity:.9}
+
+  /* CHART */
+  .chart-wrap{position:relative;height:260px;margin-top:8px}
+
+  /* FOOTER */
+  .footer{text-align:center;padding:12px;font-size:11px;color:var(--muted)}
+
+  /* TOGGLE */
+  .toggle{display:inline-flex;background:#f0f3f7;border-radius:4px;padding:2px;border:1px solid var(--border)}
+  .toggle button{background:transparent;border:none;padding:4px 10px;font-size:12px;cursor:pointer;border-radius:3px;color:var(--muted);font-weight:500}
+  .toggle button.on{background:var(--amway-blue);color:#fff}
+
+  /* WIDTH CONTROLS */
+  .width-controls{display:inline-flex;align-items:center;gap:3px;background:#fff;border:1px solid var(--border);border-radius:4px;padding:2px}
+  .width-controls button{background:transparent;border:none;width:22px;height:22px;cursor:pointer;color:var(--amway-blue);font-weight:bold;border-radius:3px;font-size:13px}
+  .width-controls button:hover{background:var(--hover)}
+
+  /* COLUMN PRESET INDICATOR */
+  .info-bar{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fff5e6;border:1px solid #fcd34d;border-radius:4px;font-size:11px;color:#92400e;margin-bottom:10px}
+  .info-bar.success{background:#ecfdf5;border-color:#10b981;color:#065f46}
+</style>
+</head>
+<body>
+<header>
+  <h1>LOS Tracker</h1>
+  <span class="badge">AMWAY</span>
+  <span class="spacer"></span>
+  <button id="saveBtn" title="Export all loaded months">💾 Save</button>
+  <button id="loadBtn" title="Load workbook">📂 Load</button>
+  <input type="file" id="loadInput" accept=".json,.lostracker.json" style="display:none" />
+  <button id="clearBtn">🗑 Clear</button>
+</header>
+
+<nav>
+  <button class="back-btn" id="backBtn">← Back to Dashboard</button>
+  <button data-view="upload" class="active">Upload</button>
+  <button data-view="dashboard">📊 Dashboard</button>
+  <button data-view="scorecard">ABO Scorecard</button>
+  <button data-view="rollup">Team Rollups</button>
+  <button data-view="mom">MoM Highlights</button>
+</nav>
+
+<main id="main"></main>
+
+<div class="footer">All data is processed locally in your browser. Nothing is uploaded.</div>
+
+<script>
+/* =========================================================
+   STATE
+   ========================================================= */
+const State = {
+  months: {},
+  currentView: 'upload',
+  previousView: null,
+  selectedMetric: 'PPV',
+  selectedABO: null,
+  hierarchyMode: 'tree',
+  expanded: new Set(),
+  colWidths: {
+    abo: 70,
+    name: 220,
+    level: 50,
+    month: 100
+  },
+  searchQuery: '',
+  initialized: false
+};
+
+const METRIC_KEYS = ["GPV","PPV","Return PV","Bonus Percent","GBV","Customer PV","Ruby PV","Customers","Points to Next level","Qualified Legs","Group Size","Personal Order Count","Group Orders Count","Sponsoring","Annual PPV","Total Organization PV"];
+
+function applyColWidths(){
+  const r = document.documentElement.style;
+  r.setProperty('--w-abo', State.colWidths.abo + 'px');
+  r.setProperty('--w-name', State.colWidths.name + 'px');
+  r.setProperty('--w-level', State.colWidths.level + 'px');
+  r.setProperty('--w-month', State.colWidths.month + 'px');
+}
+
+/* =========================================================
+   PARSER
+   ========================================================= */
+function parseMonth(sheetName, sheet, fileName){
+  const aoa = XLSX.utils.sheet_to_json(sheet, {header:1, defval:null, raw:false});
+  if (!aoa || aoa.length < 4) return null;
+
+  let headerRow = -1;
+  for (let i=0;i<Math.min(6,aoa.length);i++){
+    const r = aoa[i];
+    if (!r) continue;
+    const joined = r.map(x => (x||'').toString().toLowerCase()).join('|');
+    if (joined.includes('abo number') && (joined.includes('name') || joined.includes('sponsor'))){
+      headerRow = i; break;
+    }
+  }
+  if (headerRow < 0) return null;
+  const headers = aoa[headerRow].map(h => (h==null?'':h.toString().trim()));
+
+  const idx = {};
+  function findCol(...names){
+    for (const n of names){
+      const t = n.toLowerCase();
+      for (let i=0;i<headers.length;i++){
+        if (headers[i].toLowerCase() === t) return i;
+      }
+      for (let i=0;i<headers.length;i++){
+        if (headers[i].toLowerCase().includes(t)) return i;
+      }
+    }
+    return -1;
+  }
+
+  idx.level    = findCol("ABO Level","Level");
+  idx.sponsor  = findCol("Sponsor ABO Number","Sponsor ABO","Sponsor");
+  idx.abo      = findCol("ABO Number");
+  idx.country  = findCol("Country");
+  idx.name     = findCol("Name");
+  idx.entry    = findCol("Entry Date");
+  idx.phone    = findCol("Phone");
+  idx.email    = findCol("Email");
+  idx.address  = findCol("Address");
+  idx.renewal  = findCol("Renewal Date");
+
+  const metricCols = {};
+  for (const m of METRIC_KEYS){
+    const c = findCol(m);
+    if (c >= 0) metricCols[m] = c;
+  }
+
+  const rows = [];
+  for (let i = headerRow + 1; i < aoa.length; i++){
+    const r = aoa[i];
+    if (!r) continue;
+    const abo = idx.abo >= 0 ? r[idx.abo] : null;
+    if (!abo) continue;
+    const aboStr = abo.toString().trim();
+    if (!aboStr || aboStr.toLowerCase().includes('total')) continue;
+
+    const row = {
+      abo: aboStr,
+      level: idx.level >= 0 ? num(r[idx.level]) : null,
+      sponsor: idx.sponsor >= 0 ? (r[idx.sponsor]||'').toString().trim() : '',
+      country: idx.country >= 0 ? (r[idx.country]||'').toString().trim() : '',
+      name: idx.name >= 0 ? (r[idx.name]||'').toString().trim() : '',
+      entry: idx.entry >= 0 ? (r[idx.entry]||'').toString().trim() : '',
+      phone: idx.phone >= 0 ? (r[idx.phone]||'').toString().trim() : '',
+      email: idx.email >= 0 ? (r[idx.email]||'').toString().trim() : '',
+      address: idx.address >= 0 ? (r[idx.address]||'').toString().trim() : '',
+      renewal: idx.renewal >= 0 ? (r[idx.renewal]||'').toString().trim() : '',
+      metrics: {}
+    };
+    for (const m of Object.keys(metricCols)){
+      const v = r[metricCols[m]];
+      row.metrics[m] = num(v);
+    }
+    rows.push(row);
+  }
+
+  const { key, label } = getMonthKeyAndLabel(sheetName, fileName);
+  return { key, label, rows };
+}
+
+function num(v){
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'number') return v;
+  const s = v.toString().replace(/,/g,'').replace(/%/g,'').trim();
+  if (s === '' || s === '-') return null;
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+function monthKeyFromName(name){
+  if (!name) return null;
+  const months = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',sept:'09',oct:'10',nov:'11',dec:'12',
+    january:'01',february:'02',march:'03',april:'04',june:'06',july:'07',august:'08',september:'09',october:'10',november:'11',december:'12'};
+  const lower = name.toLowerCase().trim();
+  // Match month name followed by year, allowing separators (_ - . space) between them
+  const m = lower.match(/([a-z]+)[\s_\-\.]*(\d{4})/);
+  if (m && months[m[1]]) return `${m[2]}-${months[m[1]]}`;
+  // Also try year-month pattern (e.g., 2026-05, 2026_05, 202605)
+  const m2 = lower.match(/(\d{4})[\s_\-\.]*(\d{1,2})/);
+  if (m2 && parseInt(m2[2]) >= 1 && parseInt(m2[2]) <= 12){
+    return `${m2[1]}-${m2[2].padStart(2,'0')}`;
+  }
+  return null; // Indicate no month/year pattern found
+}
+
+function getMonthKeyAndLabel(sheetName, fileName){
+  // Try sheet name first - if it has a month/year, use it
+  const sheetKey = monthKeyFromName(sheetName);
+  if (sheetKey){
+    return { key: sheetKey, label: sheetName.trim() };
+  }
+  
+  // Sheet name doesn't have month/year - try filename
+  if (fileName){
+    const cleanFileName = fileName.trim();
+    const fileKey = monthKeyFromName(cleanFileName);
+    if (fileKey){
+      // Found month/year in filename - construct a nice label like "May 2026"
+      const lower = cleanFileName.toLowerCase();
+      const m = lower.match(/([a-z]+)[\s_\-\.]*(\d{4})/);
+      if (m){
+        // Capitalize first letter, keep rest lowercase - e.g., "may" -> "May", "january" -> "January"
+        const monthName = m[1].charAt(0).toUpperCase() + m[1].slice(1);
+        return { 
+          key: fileKey, 
+          label: `${monthName} ${m[2]}`
+        };
+      }
+      return { key: fileKey, label: cleanFileName };
+    }
+    
+    // Neither has month/year - use filename as unique label
+    // Only include sheet name suffix if it's distinctive (not "Sheet1")
+    const sn = sheetName.trim();
+    const isGenericSheet = !sn || /^sheet\s*\d*$/i.test(sn);
+    const suffix = isGenericSheet ? '' : '_' + sn;
+    return { 
+      key: cleanFileName + suffix,
+      label: cleanFileName + (isGenericSheet ? '' : ' - ' + sn)
+    };
+  }
+  
+  // Last resort - use sheet name as-is
+  return { key: sheetName || 'unknown', label: (sheetName || 'Unknown').trim() };
+}
+
+/* =========================================================
+   FILE INTAKE
+   ========================================================= */
+async function handleFiles(fileList){
+  const files = Array.from(fileList);
+  let added = 0, skipped = 0;
+  for (const f of files){
+    try{
+      const data = await f.arrayBuffer();
+      const wb = XLSX.read(data, {type:'array', cellDates:false});
+      // Extract filename without extension to use as fallback for month identification
+      const fileName = f.name.replace(/\.(xlsx|xlsm|xls)$/i, '');
+      for (const sn of wb.SheetNames){
+        if (sn.toLowerCase() === 'summary') continue;
+        const parsed = parseMonth(sn, wb.Sheets[sn], fileName);
+        if (parsed && parsed.rows.length > 0){
+          State.months[parsed.key] = parsed;
+          added++;
+        } else {
+          skipped++;
+        }
+      }
+    }catch(e){
+      console.error('Failed to parse', f.name, e);
+      skipped++;
+    }
+  }
+  if (!State.initialized && Object.keys(State.months).length > 0){
+    initExpandedState();
+    State.initialized = true;
+  }
+  render();
+  if (added > 0) {
+    setTimeout(()=>alert(`Loaded ${added} month sheet(s)${skipped?`. Skipped ${skipped}.`:'.'}`), 50);
+  }
+}
+
+/* =========================================================
+   TREE BUILDING
+   ========================================================= */
+function buildTree(){
+  const aboMap = new Map();
+  const months = sortedMonths();
+  
+  for (let i = months.length - 1; i >= 0; i--){
+    for (const r of months[i].rows){
+      if (!aboMap.has(r.abo)){
+        aboMap.set(r.abo, {...r, children: []});
+      }
+    }
+  }
+  
+  const roots = [];
+  for (const [abo, node] of aboMap){
+    const sponsor = node.sponsor;
+    if (sponsor && aboMap.has(sponsor) && sponsor !== abo){
+      aboMap.get(sponsor).children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+  
+  function sortChildren(node){
+    node.children.sort((a,b)=>{
+      const la = a.level || 99, lb = b.level || 99;
+      if (la !== lb) return la - lb;
+      return (a.name||'').localeCompare(b.name||'');
+    });
+    for (const c of node.children) sortChildren(c);
+  }
+  
+  roots.sort((a,b)=>{
+    const la = a.level || 99, lb = b.level || 99;
+    if (la !== lb) return la - lb;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+  for (const r of roots) sortChildren(r);
+  
+  return { roots, aboMap };
+}
+
+function initExpandedState(){
+  const { roots } = buildTree();
+  State.expanded.clear();
+  for (const r of roots){
+    State.expanded.add(r.abo);
+  }
+}
+
+function flattenTree(roots, query){
+  const result = [];
+  const q = (query || '').toLowerCase().trim();
+  
+  function hasMatch(node){
+    if (!q) return true;
+    if (node.abo.toLowerCase().includes(q)) return true;
+    if ((node.name||'').toLowerCase().includes(q)) return true;
+    for (const c of node.children) if (hasMatch(c)) return true;
+    return false;
+  }
+  
+  function walk(node, depth){
+    if (q && !hasMatch(node)) return;
+    
+    const isExpanded = State.expanded.has(node.abo) || !!q;
+    const hasChildren = node.children.length > 0;
+    
+    result.push({node, depth, isExpanded, hasChildren});
+    
+    if (isExpanded){
+      for (const c of node.children){
+        walk(c, depth + 1);
+      }
+    }
+  }
+  
+  for (const r of roots){
+    walk(r, 0);
+  }
+  
+  return result;
+}
+
+function expandAll(){
+  const { aboMap } = buildTree();
+  for (const abo of aboMap.keys()){
+    State.expanded.add(abo);
+  }
+}
+
+function collapseAll(){
+  State.expanded.clear();
+}
+
+/* =========================================================
+   ROUTER + RENDER
+   ========================================================= */
+document.querySelectorAll('nav button[data-view]').forEach(b=>{
+  b.onclick = ()=>{
+    State.previousView = State.currentView;
+    document.querySelectorAll('nav button[data-view]').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    State.currentView = b.dataset.view;
+    updateBackButton();
+    render();
+  };
+});
+
+document.getElementById('backBtn').onclick = ()=>{
+  goToView('dashboard');
+};
+
+function goToView(view){
+  State.previousView = State.currentView;
+  State.currentView = view;
+  document.querySelectorAll('nav button[data-view]').forEach(x=>{
+    x.classList.toggle('active', x.dataset.view === view);
+  });
+  updateBackButton();
+  render();
+}
+
+function updateBackButton(){
+  const btn = document.getElementById('backBtn');
+  // Show back button on all views except dashboard and upload
+  if (State.currentView === 'dashboard' || State.currentView === 'upload'){
+    btn.classList.remove('visible');
+  } else {
+    btn.classList.add('visible');
+  }
+}
+
+function render(){
+  applyColWidths();
+  const m = document.getElementById('main');
+  m.innerHTML = '';
+  if (State.currentView === 'upload') return renderUpload(m);
+  if (Object.keys(State.months).length === 0){
+    m.innerHTML = `<div class="panel"><div class="empty"><h3>No data loaded yet</h3><p>Go to the Upload tab and drop your monthly LOS files to get started.</p></div></div>`;
+    return;
+  }
+  if (State.currentView === 'dashboard') return renderDashboard(m);
+  if (State.currentView === 'scorecard') return renderScorecard(m);
+  if (State.currentView === 'rollup') return renderRollup(m);
+  if (State.currentView === 'mom') return renderMoM(m);
+}
+
+/* ---------- UPLOAD VIEW ---------- */
+function renderUpload(root){
+  const loaded = Object.values(State.months).sort((a,b)=>a.key.localeCompare(b.key));
+  root.innerHTML = `
+    <div class="panel">
+      <h2>Upload monthly LOS files</h2>
+      <div class="dropzone" id="dz">
+        <strong>Drop your monthly .xlsx files here</strong>
+        <p>Or click to browse. You can drop multiple files at once.</p>
+        <p style="font-size:12px;opacity:.8">Each file's sheet name (e.g. "May 2026") is used as the month. Summary tabs are ignored.</p>
+        <label for="fileInput">Choose Files</label>
+        <input type="file" id="fileInput" multiple accept=".xlsx,.xlsm,.xls" />
+        ${loaded.length ? `
+          <div class="months-chips">
+            ${loaded.map(m=>`<span class="chip">${m.label} (${m.rows.length})<span class="x" data-key="${m.key}">×</span></span>`).join('')}
+          </div>
+        `:''}
+      </div>
+      ${loaded.length === 0 ? '' : `
+        <div style="margin-top:12px;font-size:13px;color:var(--muted)">
+          ${loaded.length} month(s) loaded. Click <strong>📊 Dashboard</strong> above to see the hierarchy with all months as columns.
+        </div>
+      `}
+    </div>
+  `;
+  const dz = document.getElementById('dz');
+  const input = document.getElementById('fileInput');
+  input.onchange = e => handleFiles(e.target.files);
+  dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('drag')});
+  dz.addEventListener('dragleave', ()=>dz.classList.remove('drag'));
+  dz.addEventListener('drop', e=>{
+    e.preventDefault();
+    dz.classList.remove('drag');
+    handleFiles(e.dataTransfer.files);
+  });
+  document.querySelectorAll('.chip .x').forEach(x=>{
+    x.onclick = ()=>{ delete State.months[x.dataset.key]; render(); };
+  });
+}
+
+/* ---------- DASHBOARD VIEW ---------- */
+function renderDashboard(root){
+  const months = sortedMonths();
+  const { aboMap } = buildTree();
+  
+  const totalABOs = aboMap.size;
+  const latestMonth = months[months.length - 1];
+  const prevMonth = months.length > 1 ? months[months.length - 2] : null;
+  const latestTotal = latestMonth ? sumMetric(latestMonth, State.selectedMetric) : 0;
+  const prevTotal = prevMonth ? sumMetric(prevMonth, State.selectedMetric) : 0;
+  const totalChange = prevTotal ? ((latestTotal - prevTotal) / Math.abs(prevTotal)) * 100 : 0;
+  const activeInLatest = latestMonth ? latestMonth.rows.length : 0;
+  
+  root.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="label">Total ABOs</div>
+        <div class="value">${totalABOs}</div>
+        <div class="sub">Across all months</div>
+      </div>
+      <div class="kpi kpi-good">
+        <div class="label">Active in ${latestMonth?.label || '—'}</div>
+        <div class="value">${activeInLatest}</div>
+        <div class="sub">${totalABOs - activeInLatest} inactive</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Total ${State.selectedMetric} — Latest</div>
+        <div class="value">${fmt(latestTotal)}</div>
+        ${prevMonth ? `
+          <div class="trend ${totalChange >= 0 ? 'up' : 'down'}">
+            ${totalChange >= 0 ? '↑' : '↓'} ${Math.abs(totalChange).toFixed(1)}% vs ${prevMonth.label}
+          </div>
+        ` : `<div class="sub">No prior month</div>`}
+      </div>
+      <div class="kpi">
+        <div class="label">Months Loaded</div>
+        <div class="value">${months.length}</div>
+        <div class="sub">${months[0]?.label} — ${months[months.length-1]?.label}</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Hierarchy Dashboard — All Months</h2>
+      
+      <div class="controls">
+        <div class="control-group">
+          <label>Metric:</label>
+          <select id="metricSel">
+            ${METRIC_KEYS.map(k=>`<option value="${k}" ${k===State.selectedMetric?'selected':''}>${k}</option>`).join('')}
+          </select>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="control-group">
+          <label>Search:</label>
+          <input type="text" id="searchInput" placeholder="ABO # or name..." value="${escapeHtml(State.searchQuery)}" style="width:140px" />
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="control-group">
+          <button class="btn btn-sm" id="expandAllBtn" title="Expand all nodes">⊞ Expand</button>
+          <button class="btn btn-sm" id="collapseAllBtn" title="Collapse all nodes">⊟ Collapse</button>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="control-group">
+          <label>Preset:</label>
+          <div class="view-mode-buttons">
+            <button id="presetCompact">Compact</button>
+            <button id="presetNormal">Normal</button>
+            <button id="presetWide">Wide</button>
+            <button id="presetMaxMonths">Max Months</button>
+          </div>
+        </div>
+        
+        <span style="flex:1"></span>
+        <span style="font-size:12px;color:var(--muted)">${months.length} months × ${totalABOs} ABOs</span>
+      </div>
+
+      <div class="info-bar success">
+        💡 <strong>Tip:</strong> Drag the right edge of ANY column header (ABO#, Name, Lvl, or any month) to resize it. Click <strong>+</strong> / <strong>−</strong> to expand/collapse hierarchy.
+      </div>
+
+      <div class="legend">
+        <span><i style="background:#fff;border:1px solid var(--border)"></i> value</span>
+        <span><i style="background:repeating-linear-gradient(45deg,#fafafa,#fafafa 3px,#f0f0f0 3px,#f0f0f0 6px)"></i> inactive</span>
+        <span><i style="background:#ecfdf5"></i> increase</span>
+        <span><i style="background:#fef2f2"></i> decrease</span>
+      </div>
+
+      <div class="table-container">
+        <div class="table-scroll" id="tableScroll">
+          <table id="dashboardTable">
+            <thead>
+              <tr>
+                <th class="sticky-abo col-abo">
+                  ABO #
+                  <span class="resize-handle" data-col="abo"></span>
+                </th>
+                <th class="sticky-name col-name">
+                  Name (Hierarchy)
+                  <span class="resize-handle" data-col="name"></span>
+                </th>
+                <th class="sticky-level col-level num">
+                  Lvl
+                  <span class="resize-handle" data-col="level"></span>
+                </th>
+                ${months.map((m, idx)=>`<th class="num col-month month-col" data-month="${m.key}" data-month-idx="${idx}">
+                  ${m.label}
+                  <span class="resize-handle" data-col="month" data-month-idx="${idx}"></span>
+                </th>`).join('')}
+              </tr>
+            </thead>
+            <tbody id="dashboardBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('metricSel').onchange = e => {
+    State.selectedMetric = e.target.value;
+    renderDashboard(root);
+  };
+  
+  document.getElementById('searchInput').oninput = e => {
+    State.searchQuery = e.target.value;
+    renderDashboardBody(months);
+  };
+  
+  document.getElementById('expandAllBtn').onclick = () => {
+    expandAll();
+    renderDashboardBody(months);
+  };
+  
+  document.getElementById('collapseAllBtn').onclick = () => {
+    collapseAll();
+    renderDashboardBody(months);
+  };
+  
+  // Preset buttons
+  document.getElementById('presetCompact').onclick = () => {
+    State.colWidths = {abo: 60, name: 160, level: 40, month: 80};
+    applyColWidths();
+  };
+  document.getElementById('presetNormal').onclick = () => {
+    State.colWidths = {abo: 70, name: 220, level: 50, month: 100};
+    applyColWidths();
+  };
+  document.getElementById('presetWide').onclick = () => {
+    State.colWidths = {abo: 90, name: 280, level: 60, month: 130};
+    applyColWidths();
+  };
+  document.getElementById('presetMaxMonths').onclick = () => {
+    State.colWidths = {abo: 55, name: 130, level: 35, month: 75};
+    applyColWidths();
+  };
+  
+  setupColumnResize();
+  renderDashboardBody(months);
+}
+
+function setupColumnResize(){
+  document.querySelectorAll('.resize-handle').forEach(handle => {
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const colType = handle.dataset.col;
+      const monthIdx = handle.dataset.monthIdx;
+      const startX = e.pageX;
+      let startWidth;
+      
+      if (colType === 'abo') startWidth = State.colWidths.abo;
+      else if (colType === 'name') startWidth = State.colWidths.name;
+      else if (colType === 'level') startWidth = State.colWidths.level;
+      else if (colType === 'month') startWidth = State.colWidths.month;
+      
+      handle.classList.add('resizing');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      
+      const onMove = (ev) => {
+        const delta = ev.pageX - startX;
+        const newWidth = Math.max(30, Math.min(500, startWidth + delta));
+        
+        if (colType === 'abo'){
+          State.colWidths.abo = newWidth;
+        } else if (colType === 'name'){
+          State.colWidths.name = newWidth;
+        } else if (colType === 'level'){
+          State.colWidths.level = newWidth;
+        } else if (colType === 'month'){
+          State.colWidths.month = newWidth;
+        }
+        applyColWidths();
+      };
+      
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        handle.classList.remove('resizing');
+      };
+      
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+function renderDashboardBody(months){
+  const { roots } = buildTree();
+  const flat = flattenTree(roots, State.searchQuery);
+  const metric = State.selectedMetric;
+  const body = document.getElementById('dashboardBody');
+  
+  const rows = [];
+  for (const item of flat){
+    const node = item.node;
+    let prev = null;
+    
+    const monthCells = months.map(m => {
+      const r = m.rows.find(x => x.abo === node.abo);
+      if (!r) return `<td class="num inactive col-month">—</td>`;
+      const v = r.metrics[metric];
+      let cls = '';
+      if (v != null && prev != null){
+        if (v > prev) cls = 'up';
+        else if (v < prev) cls = 'down';
+      }
+      if (v != null) prev = v;
+      return `<td class="num col-month ${cls}">${v == null ? '' : fmt(v)}</td>`;
+    });
+    
+    const indentPx = item.depth * 14;
+    const toggleIcon = !item.hasChildren ? '' : item.isExpanded ? '−' : '+';
+    const toggleClass = item.hasChildren ? '' : 'leaf';
+    
+    const levelClass = node.level ? `level-${Math.min(7, node.level)}` : '';
+    const levelBadge = node.level 
+      ? `<span class="level-badge ${levelClass}">${node.level}</span>`
+      : '—';
+    
+    rows.push(`
+      <tr data-abo="${node.abo}">
+        <td class="sticky-abo col-abo" title="${node.abo}">${node.abo}</td>
+        <td class="sticky-name col-name">
+          <div class="tree-cell">
+            <span class="tree-indent" style="width:${indentPx}px"></span>
+            <span class="tree-toggle ${toggleClass}" data-abo="${node.abo}">${toggleIcon}</span>
+            <span class="tree-name" title="${escapeHtml(node.name||'')}">${escapeHtml(node.name||'(no name)')}</span>
+          </div>
+        </td>
+        <td class="sticky-level col-level num">${levelBadge}</td>
+        ${monthCells.join('')}
+      </tr>
+    `);
+  }
+  
+  body.innerHTML = rows.join('');
+  
+  body.querySelectorAll('.tree-toggle:not(.leaf)').forEach(toggle => {
+    toggle.onclick = (e) => {
+      e.stopPropagation();
+      const abo = toggle.dataset.abo;
+      if (State.expanded.has(abo)){
+        State.expanded.delete(abo);
+      } else {
+        State.expanded.add(abo);
+      }
+      renderDashboardBody(months);
+    };
+  });
+}
+
+/* ---------- ABO SCORECARD ---------- */
+function renderScorecard(root){
+  const months = sortedMonths();
+  const allABOs = uniqueABOs();
+  if (!State.selectedABO || !allABOs.find(a=>a.abo === State.selectedABO)){
+    State.selectedABO = allABOs[0]?.abo;
+  }
+  const cur = allABOs.find(a=>a.abo === State.selectedABO);
+
+  root.innerHTML = `
+    <div class="panel">
+      <h2>ABO Scorecard</h2>
+      <div class="controls">
+        <div class="control-group">
+          <label>View:</label>
+          <div class="toggle">
+            <button id="tTree" class="${State.hierarchyMode==='tree'?'on':''}">Tree</button>
+            <button id="tFlat" class="${State.hierarchyMode==='flat'?'on':''}">Flat</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Filter:</label>
+          <input type="text" id="aboFilter" placeholder="Search name or ABO #" />
+        </div>
+      </div>
+      <div class="two-col">
+        <div>
+          <div class="table-container">
+            <div class="table-scroll" style="max-height:600px"><table style="table-layout:auto;width:100%">
+              <thead><tr><th>ABO #</th><th>Name</th><th class="num">Lvl</th></tr></thead>
+              <tbody id="aboList"></tbody>
+            </table></div>
+          </div>
+        </div>
+        <div id="cardPane"></div>
+      </div>
+    </div>
+  `;
+  document.getElementById('tTree').onclick = ()=>{State.hierarchyMode='tree';renderScorecard(root)};
+  document.getElementById('tFlat').onclick = ()=>{State.hierarchyMode='flat';renderScorecard(root)};
+  document.getElementById('aboFilter').oninput = e=>fillABOList(allABOs, e.target.value);
+  fillABOList(allABOs, '');
+  if (cur) fillCardPane(cur, months);
+}
+
+function fillABOList(all, filter){
+  const list = document.getElementById('aboList');
+  const f = filter.toLowerCase().trim();
+  let arr = all;
+  if (f) arr = all.filter(a => a.abo.toLowerCase().includes(f) || (a.name||'').toLowerCase().includes(f));
+  if (State.hierarchyMode === 'flat') arr = [...arr].sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+  list.innerHTML = arr.map(a=>{
+    const indent = State.hierarchyMode === 'tree' ? '&nbsp;&nbsp;'.repeat(Math.max(0,(a.level||1)-1)) : '';
+    return `<tr data-abo="${a.abo}" style="cursor:pointer;${a.abo===State.selectedABO?'background:#eef4fb':''}">
+      <td>${a.abo}</td>
+      <td>${indent}${escapeHtml(a.name||'')}</td>
+      <td class="num">${a.level ?? ''}</td>
+    </tr>`;
+  }).join('');
+  list.querySelectorAll('tr').forEach(tr=>{
+    tr.onclick = ()=>{
+      State.selectedABO = tr.dataset.abo;
+      renderScorecard(document.getElementById('main'));
+    };
+  });
+}
+
+function fillCardPane(abo, months){
+  const pane = document.getElementById('cardPane');
+  let latestRow = null;
+  for (let i = months.length-1; i>=0; i--){
+    const r = months[i].rows.find(x=>x.abo === abo.abo);
+    if (r){ latestRow = r; break; }
+  }
+  const info = latestRow || abo;
+  const history = months.map(m => {
+    const r = m.rows.find(x=>x.abo === abo.abo);
+    return {label:m.label, key:m.key, row:r};
+  });
+  const ppvSeries = history.map(h=>h.row?.metrics?.PPV ?? null);
+  const gpvSeries = history.map(h=>h.row?.metrics?.GPV ?? null);
+  const custSeries = history.map(h=>h.row?.metrics?.Customers ?? null);
+  const activeMonths = history.filter(h=>h.row).length;
+
+  pane.innerHTML = `
+    <div class="scorecard-header">
+      <h3>${escapeHtml(info.name||'(no name)')}</h3>
+      <div class="meta">
+        ABO ${info.abo} · Level ${info.level ?? '?'} · Sponsor ${info.sponsor||'—'} · ${escapeHtml(info.country||'')}
+        ${info.entry?`<br>Entry: ${escapeHtml(info.entry)} · Renewal: ${escapeHtml(info.renewal||'—')}`:''}
+      </div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="label">Active Months</div><div class="value">${activeMonths}/${months.length}</div></div>
+      <div class="kpi"><div class="label">Latest PPV</div><div class="value">${fmt(lastNonNull(ppvSeries))}</div></div>
+      <div class="kpi"><div class="label">Latest GPV</div><div class="value">${fmt(lastNonNull(gpvSeries))}</div></div>
+      <div class="kpi"><div class="label">Latest Customers</div><div class="value">${fmt(lastNonNull(custSeries))}</div></div>
+    </div>
+    <div class="panel" style="margin:0">
+      <h2 style="font-size:14px">PPV & GPV Trend</h2>
+      <div class="chart-wrap"><canvas id="ch1"></canvas></div>
+    </div>
+    <div class="panel" style="margin-top:12px;margin-bottom:0">
+      <h2 style="font-size:14px">All Metrics By Month</h2>
+      <div class="table-container">
+        <div class="table-scroll" style="max-height:340px"><table style="table-layout:auto;width:100%">
+          <thead><tr><th>Metric</th>${months.map(m=>`<th class="num">${m.label}</th>`).join('')}</tr></thead>
+          <tbody>
+          ${METRIC_KEYS.map(mk=>`
+            <tr><td>${mk}</td>
+            ${history.map(h=>{
+              if (!h.row) return `<td class="num inactive">—</td>`;
+              const v = h.row.metrics[mk];
+              return `<td class="num">${v==null?'':fmt(v)}</td>`;
+            }).join('')}
+            </tr>`).join('')}
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  `;
+  const ctx = document.getElementById('ch1').getContext('2d');
+  new Chart(ctx, {
+    type:'line',
+    data:{labels:history.map(h=>h.label),datasets:[
+      {label:'PPV',data:ppvSeries,borderColor:'#003a70',backgroundColor:'rgba(0,58,112,.1)',spanGaps:true,tension:.25},
+      {label:'GPV',data:gpvSeries,borderColor:'#e4002b',backgroundColor:'rgba(228,0,43,.1)',spanGaps:true,tension:.25}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+  });
+}
+
+/* ---------- ROLLUPS ---------- */
+function renderRollup(root){
+  const months = sortedMonths();
+  root.innerHTML = `
+    <div class="panel">
+      <h2>Team Rollups</h2>
+      <div class="controls">
+        <div class="control-group">
+          <label>Group by:</label>
+          <select id="grpSel">
+            <option value="level">Level (1-7)</option>
+            <option value="sponsor">Sponsor ABO</option>
+            <option value="country">Country</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>Metric:</label>
+          <select id="rmSel">${METRIC_KEYS.map(k=>`<option value="${k}" ${k===State.selectedMetric?'selected':''}>${k}</option>`).join('')}</select>
+        </div>
+        <div class="control-group">
+          <label>Aggregate:</label>
+          <select id="aggSel"><option value="sum">Sum</option><option value="avg">Average</option><option value="count">Active count</option></select>
+        </div>
+      </div>
+      <div id="rollupOut"></div>
+    </div>
+  `;
+  const refresh = ()=>{
+    const grp = document.getElementById('grpSel').value;
+    const metric = document.getElementById('rmSel').value;
+    const agg = document.getElementById('aggSel').value;
+    State.selectedMetric = metric;
+    renderRollupBody(grp, metric, agg, months);
+  };
+  document.getElementById('grpSel').onchange = refresh;
+  document.getElementById('rmSel').onchange = refresh;
+  document.getElementById('aggSel').onchange = refresh;
+  refresh();
+}
+
+function renderRollupBody(grp, metric, agg, months){
+  const groupKeys = new Set();
+  const groupLabel = {};
+  for (const m of months){
+    for (const r of m.rows){
+      const k = grp==='level' ? (r.level??'?')
+              : grp==='sponsor' ? (r.sponsor||'(none)')
+              : (r.country||'(unknown)');
+      groupKeys.add(k);
+      if (grp==='sponsor'){
+        if (!groupLabel[k]){
+          for (const mm of months){
+            const s = mm.rows.find(x=>x.abo === k);
+            if (s){ groupLabel[k] = `${k} — ${s.name}`; break; }
+          }
+          if (!groupLabel[k]) groupLabel[k] = k;
+        }
+      } else groupLabel[k] = String(k);
+    }
+  }
+  const keys = Array.from(groupKeys).sort((a,b)=>{
+    if (grp==='level') return (a==='?'?99:Number(a)) - (b==='?'?99:Number(b));
+    return groupLabel[a].localeCompare(groupLabel[b]);
+  });
+
+  function aggregate(values){
+    const nums = values.filter(v=>v!=null);
+    if (agg === 'count') return nums.length;
+    if (nums.length === 0) return null;
+    const s = nums.reduce((a,b)=>a+b,0);
+    return agg === 'sum' ? s : s/nums.length;
+  }
+
+  const rows = keys.map(k=>{
+    const cells = months.map(m=>{
+      const vals = m.rows.filter(r=>{
+        const rk = grp==='level' ? (r.level??'?')
+                  : grp==='sponsor' ? (r.sponsor||'(none)')
+                  : (r.country||'(unknown)');
+        return rk === k;
+      }).map(r=>r.metrics[metric]);
+      return aggregate(vals);
+    });
+    return {k, cells};
+  });
+
+  const total = months.map(m=>aggregate(m.rows.map(r=>r.metrics[metric])));
+
+  document.getElementById('rollupOut').innerHTML = `
+    <div class="table-container">
+      <div class="table-scroll"><table style="table-layout:auto;width:100%">
+        <thead><tr>
+          <th>${grp==='level'?'Level':grp==='sponsor'?'Sponsor':'Country'}</th>
+          ${months.map(m=>`<th class="num">${m.label}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${rows.map(r=>`<tr><td>${escapeHtml(groupLabel[r.k])}</td>${r.cells.map(c=>`<td class="num">${c==null?'—':fmt(c)}</td>`).join('')}</tr>`).join('')}
+          <tr style="background:#eef4fb;font-weight:600"><td>Overall</td>${total.map(c=>`<td class="num">${c==null?'—':fmt(c)}</td>`).join('')}</tr>
+        </tbody>
+      </table></div>
+    </div>
+  `;
+}
+
+/* ---------- MOM HIGHLIGHTS ---------- */
+function renderMoM(root){
+  const months = sortedMonths();
+  if (months.length < 2){
+    root.innerHTML = `<div class="panel"><h2>MoM Highlights</h2><div class="empty"><p>Load at least 2 months to see month-over-month changes.</p></div></div>`;
+    return;
+  }
+  root.innerHTML = `
+    <div class="panel">
+      <h2>Month-over-Month Highlights</h2>
+      <div class="controls">
+        <div class="control-group">
+          <label>Compare:</label>
+          <select id="curM">${months.map((m,i)=>`<option value="${i}" ${i===months.length-1?'selected':''}>${m.label}</option>`).join('')}</select>
+        </div>
+        <div class="control-group">
+          <label>vs.</label>
+          <select id="prevM">${months.map((m,i)=>`<option value="${i}" ${i===months.length-2?'selected':''}>${m.label}</option>`).join('')}</select>
+        </div>
+        <div class="control-group">
+          <label>Metric:</label>
+          <select id="momMetric">${METRIC_KEYS.map(k=>`<option value="${k}" ${k===State.selectedMetric?'selected':''}>${k}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div id="momOut"></div>
+    </div>
+  `;
+  const refresh = ()=>{
+    const cur = months[+document.getElementById('curM').value];
+    const prev = months[+document.getElementById('prevM').value];
+    const metric = document.getElementById('momMetric').value;
+    State.selectedMetric = metric;
+    renderMoMBody(cur, prev, metric);
+  };
+  document.getElementById('curM').onchange = refresh;
+  document.getElementById('prevM').onchange = refresh;
+  document.getElementById('momMetric').onchange = refresh;
+  refresh();
+}
+
+function renderMoMBody(cur, prev, metric){
+  if (cur.key === prev.key){
+    document.getElementById('momOut').innerHTML = `<div class="empty"><p>Select two different months to compare.</p></div>`;
+    return;
+  }
+  const prevMap = new Map(prev.rows.map(r=>[r.abo,r]));
+  const curMap = new Map(cur.rows.map(r=>[r.abo,r]));
+
+  const changes = [];
+  const joined = cur.rows.filter(r=>!prevMap.has(r.abo));
+  const inactive = prev.rows.filter(r=>!curMap.has(r.abo));
+  for (const r of cur.rows){
+    const p = prevMap.get(r.abo);
+    if (!p) continue;
+    const a = r.metrics[metric], b = p.metrics[metric];
+    if (a == null && b == null) continue;
+    const av = a==null?0:a, bv = b==null?0:b;
+    changes.push({abo:r.abo, name:r.name, level:r.level, prev:b, cur:a, delta: av - bv});
+  }
+  const gainers = [...changes].filter(c=>c.delta>0).sort((a,b)=>b.delta-a.delta).slice(0,10);
+  const decliners = [...changes].filter(c=>c.delta<0).sort((a,b)=>a.delta-b.delta).slice(0,10);
+
+  document.getElementById('momOut').innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi"><div class="label">Total ABOs ${cur.label}</div><div class="value">${cur.rows.length}</div><div class="sub">${prev.label}: ${prev.rows.length}</div></div>
+      <div class="kpi kpi-good"><div class="label">New (joined)</div><div class="value" style="color:var(--good)">${joined.length}</div></div>
+      <div class="kpi kpi-bad"><div class="label">Inactive / Missing</div><div class="value" style="color:var(--bad)">${inactive.length}</div></div>
+      <div class="kpi"><div class="label">${metric} total — ${cur.label}</div><div class="value">${fmt(sumMetric(cur,metric))}</div><div class="sub">${prev.label}: ${fmt(sumMetric(prev,metric))}</div></div>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="panel" style="margin:0"><h2 style="font-size:14px">Top Gainers — ${metric}</h2>
+          ${gainers.length===0?'<div class="empty"><p>No increases.</p></div>':`<table style="table-layout:auto;width:100%">
+            <thead><tr><th>ABO</th><th>Name</th><th class="num">${prev.label}</th><th class="num">${cur.label}</th><th class="num">Δ</th></tr></thead>
+            <tbody>${gainers.map(c=>`<tr><td>${c.abo}</td><td>${escapeHtml(c.name||'')}</td><td class="num">${fmt(c.prev)}</td><td class="num">${fmt(c.cur)}</td><td class="num up">+${fmt(c.delta)}</td></tr>`).join('')}</tbody>
+          </table>`}
+        </div>
+      </div>
+      <div>
+        <div class="panel" style="margin:0"><h2 style="font-size:14px">Top Decliners — ${metric}</h2>
+          ${decliners.length===0?'<div class="empty"><p>No declines.</p></div>':`<table style="table-layout:auto;width:100%">
+            <thead><tr><th>ABO</th><th>Name</th><th class="num">${prev.label}</th><th class="num">${cur.label}</th><th class="num">Δ</th></tr></thead>
+            <tbody>${decliners.map(c=>`<tr><td>${c.abo}</td><td>${escapeHtml(c.name||'')}</td><td class="num">${fmt(c.prev)}</td><td class="num">${fmt(c.cur)}</td><td class="num down">${fmt(c.delta)}</td></tr>`).join('')}</tbody>
+          </table>`}
+        </div>
+      </div>
+    </div>
+    <div class="two-col" style="margin-top:18px">
+      <div class="panel" style="margin:0"><h2 style="font-size:14px"><span class="pill new">NEW</span> Joined in ${cur.label}</h2>
+        ${joined.length===0?'<div class="empty"><p>No new ABOs.</p></div>':`<table style="table-layout:auto;width:100%">
+          <thead><tr><th>ABO</th><th>Name</th><th class="num">Lvl</th><th class="num">${metric}</th></tr></thead>
+          <tbody>${joined.map(r=>`<tr><td>${r.abo}</td><td>${escapeHtml(r.name||'')}</td><td class="num">${r.level??''}</td><td class="num">${fmt(r.metrics[metric])}</td></tr>`).join('')}</tbody>
+        </table>`}
+      </div>
+      <div class="panel" style="margin:0"><h2 style="font-size:14px"><span class="pill churn">INACTIVE</span> Missing in ${cur.label}</h2>
+        ${inactive.length===0?'<div class="empty"><p>No churn.</p></div>':`<table style="table-layout:auto;width:100%">
+          <thead><tr><th>ABO</th><th>Name</th><th class="num">Lvl</th><th class="num">${prev.label} ${metric}</th></tr></thead>
+          <tbody>${inactive.map(r=>`<tr><td>${r.abo}</td><td>${escapeHtml(r.name||'')}</td><td class="num">${r.level??''}</td><td class="num">${fmt(r.metrics[metric])}</td></tr>`).join('')}</tbody>
+        </table>`}
+      </div>
+    </div>
+  `;
+}
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+function sortedMonths(){
+  return Object.values(State.months).sort((a,b)=>a.key.localeCompare(b.key));
+}
+function uniqueABOs(){
+  const months = sortedMonths();
+  const order = [];
+  const seen = new Set();
+  for (let i = months.length - 1; i >= 0; i--){
+    for (const r of months[i].rows){
+      if (!seen.has(r.abo)){ seen.add(r.abo); order.push(r); }
+    }
+  }
+  return order;
+}
+function sumMetric(month, metric){
+  return month.rows.reduce((s,r)=>{const v=r.metrics[metric];return s+(v==null?0:v)},0);
+}
+function lastNonNull(arr){for(let i=arr.length-1;i>=0;i--)if(arr[i]!=null)return arr[i];return null}
+function fmt(v){if(v==null||isNaN(v))return '—';if(Math.abs(v)>=1000)return v.toLocaleString(undefined,{maximumFractionDigits:0});return v.toLocaleString(undefined,{maximumFractionDigits:2})}
+function escapeHtml(s){return (s||'').toString().replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+/* =========================================================
+   SAVE / LOAD WORKBOOK
+   ========================================================= */
+document.getElementById('saveBtn').onclick = ()=>{
+  if (Object.keys(State.months).length === 0){ alert('No data to save.'); return; }
+  const blob = new Blob([JSON.stringify({version:1,months:State.months},null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `LOS-workbook-${new Date().toISOString().slice(0,10)}.lostracker.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+document.getElementById('loadBtn').onclick = ()=>document.getElementById('loadInput').click();
+document.getElementById('loadInput').onchange = async e=>{
+  const f = e.target.files[0]; if (!f) return;
+  try{
+    const txt = await f.text();
+    const obj = JSON.parse(txt);
+    if (obj && obj.months){
+      State.months = obj.months;
+      State.initialized = false;
+      initExpandedState();
+      State.initialized = true;
+      render();
+      alert(`Loaded ${Object.keys(obj.months).length} month(s).`);
+    } else alert('Invalid workbook file.');
+  }catch(err){ alert('Could not read file: '+err.message); }
+  e.target.value='';
+};
+document.getElementById('clearBtn').onclick = ()=>{
+  if (Object.keys(State.months).length === 0) return;
+  if (confirm('Clear all loaded data?')){ State.months = {}; State.selectedABO = null; State.expanded.clear(); State.initialized = false; render(); }
+};
+
+/* INITIAL */
+applyColWidths();
+updateBackButton();
+render();
+</script>
+</body>
+</html>
