@@ -43,16 +43,16 @@
   header button{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:6px 12px;border-radius:4px;font-size:13px;cursor:pointer;font-weight:500}
   header button:hover{background:rgba(255,255,255,.25)}
 
-  /* NAV TABS */
-  nav{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:0;overflow-x:auto;position:sticky;top:50px;z-index:99;align-items:center}
-  nav button{background:transparent;border:none;padding:12px 18px;font-size:14px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;font-weight:500;white-space:nowrap}
-  nav button.active{color:var(--amway-blue);border-bottom-color:var(--amway-red);font-weight:600}
-  nav button:hover:not(.active){color:var(--text)}
-  nav .back-btn{margin-right:10px;padding:6px 12px;background:#f0f3f7;border:1px solid var(--border);border-radius:4px;color:var(--amway-blue);font-size:13px;display:none}
+  /* NAV TABS - Always visible and sticky */
+  nav{background:#fff;border-bottom:2px solid var(--border);padding:0 20px;display:flex;gap:0;overflow-x:auto;position:sticky;top:50px;z-index:98;align-items:center;min-height:52px;flex-wrap:nowrap}
+  nav button{background:transparent;border:none;padding:12px 18px;font-size:14px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;font-weight:500;white-space:nowrap;transition:all 0.2s;flex-shrink:0}
+  nav button:hover{color:var(--text);background:rgba(0,0,0,0.02)}
+  nav button.active{color:var(--amway-blue);border-bottom-color:var(--amway-red);font-weight:600;background:#f9fbff}
+  nav .back-btn{margin-right:auto;padding:6px 12px;background:#f0f3f7;border:1px solid var(--border);border-radius:4px;color:var(--amway-blue);font-size:13px;display:none;flex-shrink:0;cursor:pointer;font-weight:500}
+  nav .back-btn:hover{background:#e3f2fd;color:var(--amway-blue-dark);border-color:var(--amway-blue)}
   nav .back-btn.visible{display:flex;align-items:center;gap:4px}
-  nav .back-btn:hover{background:var(--hover);color:var(--amway-blue-dark)}
 
-  main{flex:1;padding:16px 20px;max-width:100%;margin:0 auto;width:100%}
+  main{flex:1;padding:16px 20px;max-width:100%;margin:0 auto;width:100%;overflow-y:auto;overflow-x:hidden}
 
   /* UPLOAD */
   .dropzone{border:2px dashed #c7d2db;background:#fff;border-radius:8px;padding:40px;text-align:center;transition:all .15s;margin-bottom:20px}
